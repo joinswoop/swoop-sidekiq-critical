@@ -79,3 +79,6 @@ pipeline:
                 - AllErrors
               action:
                 type: StageRollback
+  delegateSelectors:
+    - harness-ng-fargate-delegate
+  allowStageExecutions: true
