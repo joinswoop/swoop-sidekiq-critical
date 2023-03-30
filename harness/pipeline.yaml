@@ -23,7 +23,7 @@ pipeline:
                       primaryArtifactRef: <+input>
                       sources: <+input>
           environment:
-            environmentRef: staging
+            environmentRef: stagingcritical
             deployToAll: false
             infrastructureDefinitions:
               - identifier: staging
