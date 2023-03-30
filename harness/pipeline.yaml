@@ -35,6 +35,22 @@ pipeline:
                   type: EcsRollingDeploy
                   timeout: 10m
                   spec: {}
+              - step:
+                  type: ShellScript
+                  name: Enable_ECS
+                  identifier: Enable_ECS
+                  spec:
+                    shell: Bash
+                    onDelegate: true
+                    source:
+                      type: Inline
+                      spec:
+                        script: |
+                          # aws-cli is installed in the delegate. See this wiki page for infor
+                          aws ecs update-service --cluster <+infra.cluster> --service <+project.name>-sidekiq-critical-<+env.name> --region us-east-1 --enable-execute-command --force-new-deployment
+                    environmentVariables: []
+                    outputVariables: []
+                  timeout: 10m
             rollbackSteps:
               - step:
                   name: ECS Rolling Rollback
