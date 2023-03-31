@@ -1,0 +1,77 @@
+template:
+  name: stage-sidekiq-critical
+  type: Stage
+  projectIdentifier: SwoopNextGen
+  orgIdentifier: default
+  spec:
+    type: Deployment
+    spec:
+      deploymentType: ECS
+      service:
+        serviceRef: stagesidekiqcritical
+        serviceInputs:
+          serviceDefinition:
+            type: ECS
+            spec:
+              artifacts:
+                primary:
+                  primaryArtifactRef: <+input>
+                  sources: <+input>
+      environment:
+        environmentRef: stagingcritical
+        deployToAll: false
+        infrastructureDefinitions:
+          - identifier: staging
+      execution:
+        steps:
+          - step:
+              name: ECS Rolling Deploy
+              identifier: ecsRollingDeploy
+              type: EcsRollingDeploy
+              timeout: 10m
+              spec: {}
+          - step:
+              type: ShellScript
+              name: Enable_ECS
+              identifier: Enable_ECS
+              spec:
+                shell: Bash
+                onDelegate: true
+                source:
+                  type: Inline
+                  spec:
+                    script: |
+                      # aws-cli is installed in the delegate. See this wiki page for infor
+                      aws ecs update-service --cluster <+infra.cluster> --service swoop-sidekiq-critical-staging-critical --region us-east-1 --enable-execute-command --force-new-deployment
+                environmentVariables: []
+                outputVariables: []
+              timeout: 10m
+          - step:
+              type: ShellScript
+              name: Send Nitification
+              identifier: Send_Nitification
+              spec:
+                shell: Bash
+                onDelegate: true
+                source:
+                  type: Inline
+                  spec:
+                    script: "url=<+serviceVariables.account_env>\npayload='\n{\n        \"channel\": \"\",\n        \"text\": \"THIS IS A SLACK EXAMPLE NOTIFICATION\",\n\t\"blocks\": [\n\t\t{\n\t\t\t\"type\": \"header\",\n\t\t\t\"text\": {\n\t\t\t\t\"type\": \"plain_text\",\n\t\t\t\t\"text\": \"<+env.name>-<+stage.name>\"\n\t\t\t}\n\t\t},\n\t\t{\n\t\t\t\"type\": \"section\",\n\t\t\t\"fields\": [\n\t\t\t\t{\n\t\t\t\t\t\"type\": \"mrkdwn\",\n\t\t\t\t\t\"text\": \"Service: \\n*<+service.name>*\"\n\t\t\t\t},\n\t\t\t\t{\n\t\t\t\t\t\"type\": \"mrkdwn\",\n\t\t\t\t\t\"text\": \"Deployed Artifact: \\n*<+artifact.tag>*\"\n\t\t\t\t}\n\t\t\t]\n\t\t},\n\t\t{\n\t\t\t\"type\": \"section\",\n\t\t\t\"fields\": [\n\t\t\t\t{\n\t\t\t\t\t\"type\": \"mrkdwn\",\n\t\t\t\t\t\"text\": \"Environment: \\n*<+env.name>*\"\n\t\t\t\t},\n\t\t\t\t{\n\t\t\t\t\t\"type\": \"mrkdwn\",\n\t\t\t\t\t\"text\": \"Deployed to: \\n*<+infra.name>*\"\n\t\t\t\t}\n\t\t\t]\n\t\t},\n\t\t{\n\t\t\t\"type\": \"section\",\n\t\t\t\"fields\": [\n\t\t\t\t{\n\t\t\t\t\t\"type\": \"mrkdwn\",\n\t\t\t\t\t\"text\": \"Deployed by: \\n*<+pipeline.triggeredBy.name>*\"\n\t\t\t\t}\n\t\t\t]\n\t\t},\n\t\t{\n\t\t\t\"type\": \"section\",\n\t\t\t\"fields\": [\n\t\t\t\t{\n\t\t\t\t\t\"type\": \"mrkdwn\",\n\t\t\t\t\t\"text\": \"<<+pipeline.execution.url>|Deployment URL>\"\n\t\t\t\t}\n\t\t\t]\n\t\t}\n\t]\n}'\ncurl -s -X POST -H \"Content-type: application/json\" --data \"$payload\" $url"
+                environmentVariables: []
+                outputVariables: []
+              timeout: 10m
+        rollbackSteps:
+          - step:
+              name: ECS Rolling Rollback
+              identifier: ecsRollingRollback
+              type: EcsRollingRollback
+              timeout: 10m
+              spec: {}
+    failureStrategies:
+      - onFailure:
+          errors:
+            - AllErrors
+          action:
+            type: StageRollback
+  identifier: stagesidekiqcritical
+  versionLabel: v1
